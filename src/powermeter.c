@@ -58,6 +58,10 @@ enum channel_singleended adc_channel1;
 enum channel_singleended adc_channel2;
 double sampling_frequency;
 
+#ifdef BCM2835LIB
+bool bcm_initialized = false;
+#endif
+
 struct ring the_ring;
 
 pthread_t sampling_thread;
@@ -78,8 +82,10 @@ void die(int status)
      printf("Max. sampling interval was %llu ns\n", max_delta);
 
 #ifdef BCM2835LIB
-     bcm2835_spi_end();
-     bcm2835_close();
+     if (bcm_initialized) {
+     	bcm2835_spi_end();
+     	bcm2835_close();
+     }
 #endif
      
      exit(status);
@@ -415,9 +421,16 @@ int main(int argc, char *argv[])
 #endif
      
 #ifdef BCM2835LIB
+     bcm_initialized = false;
+
      /* with BCM2835 library */
-     bcm2835_init();
+     if (0 == bcm2835_init()) {
+             perror("Could not initialize BCM2835 (are you root?)");
+             die(-1);
+     }
      bcm2835_spi_begin();
+
+     bcm_initialized = true;
      
      if (spi_channel == 0)
 	  bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
